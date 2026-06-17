@@ -16,6 +16,7 @@ A personal PWA (Progressive Web App) that tracks barometric pressure events, sym
 - ✅ Pushed to GitHub
 - ✅ `CRON_SECRET` and `BENADRYL_WEBHOOK_SECRET` generated (32-byte hex — Mom has these stored separately, ask her)
 - ✅ `SETUP.md` in the repo with full deployment instructions
+- ✅ Supabase project created, migration run, RLS enabled
 
 The app just needs to be deployed. Nothing needs to be coded.
 
@@ -23,7 +24,7 @@ The app just needs to be deployed. Nothing needs to be coded.
 
 ## What Needs to Happen (In Order)
 
-### Step 1 — Create a Supabase Project
+### ✅ Step 1 — Create a Supabase Project
 
 1. Go to [supabase.com](https://supabase.com) and create a free account (or log in)
 2. Create a new project — name it anything (e.g. `barometric-tracker`)
@@ -129,6 +130,68 @@ Once everything is running, Mom has notes from a migraine episode in the `#migra
 - **Alert threshold** defaults to 6 mbar over 3 hours — also configurable
 - **Missed check-ins are fine** — the app won't break if she can't interact during a bad episode; retroactive entry is always available
 - **Benadryl is handled separately via Zapier** — don't add a Benadryl option to the intervention UI
+
+---
+
+## For Zeph — Collaborator Onboarding
+
+Mom has invited you to the Supabase organization. Here's what you need to know to contribute.
+
+### Supabase Access
+
+1. Accept the organization invite from Supabase (check your email)
+2. Open the `barometric-tracker` project
+3. Go to **Project Settings → API** and copy:
+   - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
+   - **anon / public key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - **service_role key** → `SUPABASE_SERVICE_ROLE_KEY` *(keep this secret — never commit it)*
+4. The schema is already deployed — do **not** re-run `001_initial.sql` or you'll get errors on existing tables
+
+### GitHub Access
+
+The repo is at: https://github.com/Mary-Bowler/barometric-pressure-tracking
+
+Ask Mom to add you as a collaborator (**Settings → Collaborators → Add people**) if not already done.
+
+### Running Locally
+
+```bash
+git clone https://github.com/Mary-Bowler/barometric-pressure-tracking
+cd barometric-pressure-tracking
+npm install
+```
+
+Create a `.env.local` file in the project root (never commit this):
+
+```
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+SLACK_WEBHOOK_URL=...
+CRON_SECRET=...
+BENADRYL_WEBHOOK_SECRET=...
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+Then:
+
+```bash
+npm run dev
+```
+
+App runs at `http://localhost:3000`.
+
+### Key Things to Know
+
+- **No auth system** — this is a single-user personal app. RLS is enabled but policies are permissive for the anon key (it's not a public app, just a personal PWA)
+- **Cron job** runs every 3 hours on Vercel automatically — to test it locally, hit `GET /api/cron/check-pressure` with the header `Authorization: Bearer [CRON_SECRET]`
+- **Benadryl sync** comes in via Zapier webhook, not the UI — don't add Benadryl to the intervention UI
+- **Location defaults** to Kingston, OK — configurable in app Settings after deploy
+- The `event_outcomes` view in Supabase is the basis for the analysis charts — query it directly for ad-hoc data exploration
+
+### Architecture Diagram
+
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for a Mermaid diagram of the full system workflow.
 
 ---
 

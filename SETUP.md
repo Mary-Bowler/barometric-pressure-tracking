@@ -1,11 +1,11 @@
 # Setup Guide
 
-## 1. Supabase
+## ✅ 1. Supabase
 
-1. Go to [supabase.com](https://supabase.com) → New project
-2. Once created, open **SQL Editor**
-3. Paste and run the contents of `supabase/migrations/001_initial.sql`
-4. Go to **Settings → API**
+1. ✅ Go to [supabase.com](https://supabase.com) → New project
+2. ✅ Once created, open **SQL Editor**
+3. ✅ Paste and run the contents of `supabase/migrations/001_initial.sql`
+4. ✅ Go to **Settings → API**
    - Copy **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
    - Copy **anon / public key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - Copy **service_role key** → `SUPABASE_SERVICE_ROLE_KEY`
