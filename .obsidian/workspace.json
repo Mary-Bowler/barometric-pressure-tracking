@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "barometric-tracker-handoff.md",
+                "file": "REDESIGN-PROMPT.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "barometric-tracker-handoff"
+              "title": "REDESIGN-PROMPT"
             }
           }
         ]
@@ -185,8 +185,16 @@
   },
   "active": "d1ff41338d8b4bfa",
   "lastOpenFiles": [
-    "ARCHITECTURE.md",
+    "barometric-tracker-handoff.md.tmp.43288.3f2dd231eeab",
+    "barometric-tracker-handoff.md.tmp.43288.355b152b5a69",
+    "REDESIGN-PLAN.md.tmp.43288.cd15a7dd78ec",
+    "REDESIGN-PLAN.md.tmp.43288.ef56dc825d69",
+    "barometric-tracker-handoff.md.tmp.43288.fd208fa50c10",
+    "barometric-tracker-handoff.md.tmp.43288.8cf05b5ab730",
+    "REDESIGN-PLAN.md",
     "barometric-tracker-handoff.md",
+    "REDESIGN-PROMPT.md",
+    "ARCHITECTURE.md",
     "SETUP.md"
   ]
 }

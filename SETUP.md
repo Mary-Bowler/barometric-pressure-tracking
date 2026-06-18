@@ -1,85 +1,140 @@
 # Setup Guide
 
-## ✅ 1. Supabase
+## 1. Supabase
 
-1. ✅ Go to [supabase.com](https://supabase.com) → New project
-2. ✅ Once created, open **SQL Editor**
-3. ✅ Paste and run the contents of `supabase/migrations/001_initial.sql`
-4. ✅ Go to **Settings → API**
-   - Copy **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
-   - Copy **anon / public key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - Copy **service_role key** → `SUPABASE_SERVICE_ROLE_KEY`
+### Create the project
+1. Go to [supabase.com](https://supabase.com) → **New project**
+2. Once ready, go to **Settings → API** and copy:
+   - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
+   - **anon / public key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - **service_role key** → `SUPABASE_SERVICE_ROLE_KEY` *(never commit this)*
 
-## 2. Slack Webhook
+### Enable Auth
+1. Go to **Auth → Providers → Email** → toggle **Enable Email Provider** on
+2. Make sure **Confirm email** is off (magic link flow — no separate confirmation step)
+3. Go to **Auth → URL Configuration**:
+   - **Site URL:** your Vercel URL (e.g. `https://pressure-tracker.vercel.app`)
+   - **Redirect URLs:** add `https://pressure-tracker.vercel.app/auth/callback`
+   - *(For local dev, also add `http://localhost:3000/auth/callback`)*
 
-1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App → From scratch**
-2. Name it "Pressure Tracker", pick your personal workspace
-3. Under **Add features and functionality** → **Incoming Webhooks** → toggle On
-4. Click **Add New Webhook to Workspace**
-5. Select the `#migraine-symptom` channel (or whichever channel you prefer)
-6. Copy the webhook URL → `SLACK_WEBHOOK_URL`
+### Apply the schema
+In **SQL Editor**, paste and run `supabase/migrations/001_initial.sql`.
 
-## 3. Generate Secrets
+If you're resetting an existing project that had the old v1 schema, drop the old
+objects first:
+```sql
+drop view if exists event_outcomes;
+drop table if exists interventions, symptom_checkins, pressure_events, settings cascade;
+```
+Then run `001_initial.sql`.
 
-Generate two random strings (e.g., run `openssl rand -hex 32` twice, or use any password generator):
-- One for `CRON_SECRET`
-- One for `BENADRYL_WEBHOOK_SECRET`
+---
+
+## 2. Generate VAPID Keys (Web Push)
+
+Run once locally — save the output, you'll need it in step 4:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+This prints a **public key** and a **private key**. The public key goes in two env vars
+(one client-facing, one server-side); the private key is server-only.
+
+---
+
+## 3. Generate CRON_SECRET
+
+Any random string works:
+```bash
+openssl rand -hex 32
+```
+
+---
 
 ## 4. Deploy to Vercel
 
-1. Push this project to a GitHub repo
-2. Go to [vercel.com](https://vercel.com) → Import Repository
-3. Add all environment variables under **Settings → Environment Variables**:
+1. Push the repo to GitHub (if not already there)
+2. Go to [vercel.com](https://vercel.com) → **Add New → Project** → import the repo
+3. Under **Settings → Environment Variables**, add:
 
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | From step 1 |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | From step 1 |
+| `SUPABASE_SERVICE_ROLE_KEY` | From step 1 |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Public key from step 2 |
+| `VAPID_PRIVATE_KEY` | Private key from step 2 |
+| `VAPID_SUBJECT` | `mailto:mary.bowler@gmail.com` |
+| `NEXT_PUBLIC_SITE_URL` | Your Vercel URL (e.g. `https://pressure-tracker.vercel.app`) |
+| `CRON_SECRET` | From step 3 |
+
+4. Click **Deploy**. Vercel picks up the cron schedule from `vercel.json` automatically.
+
+---
+
+## 5. First Sign-In
+
+1. Open the deployed app — you'll be redirected to `/login`
+2. Enter your email address and tap **Send magic link**
+3. Click the link in the email → you land on the home screen, authenticated
+4. A `profiles` row is auto-created by the database trigger on first login
+
+Repeat for any additional users (Zeph, etc.) — they sign in the same way and get their
+own fully isolated data.
+
+---
+
+## 6. Configure Your Settings
+
+1. Go to **Settings** in the app
+2. Set your location (lat/lng) and alert thresholds
+3. Mary's defaults: Kingston, OK — 34.2334 lat, -96.7167 lng, 6 mbar / 3 hrs
+
+---
+
+## 7. Enable Push Notifications
+
+1. **On iPhone:** open the app URL in Safari → Share → **Add to Home Screen** first
+   (iOS requires the PWA to be installed before push notifications work)
+2. Open the installed app from the Home Screen
+3. Go to **Settings → Enable notifications** → grant permission
+4. A row appears in `push_subscriptions` — you're subscribed
+
+Test a notification manually:
+```bash
+curl -H "Authorization: Bearer YOUR_CRON_SECRET" \
+  https://your-app.vercel.app/api/cron/check-pressure
 ```
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY
-SLACK_WEBHOOK_URL
-CRON_SECRET
-BENADRYL_WEBHOOK_SECRET
-NEXT_PUBLIC_APP_URL        ← set to your Vercel URL, e.g. https://pressure-tracker.vercel.app
+
+---
+
+## 8. Local Development
+
+```bash
+npm install
 ```
 
-4. Deploy. Vercel will automatically pick up the cron schedule from `vercel.json`.
+Create `.env.local` (never commit this):
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:mary.bowler@gmail.com
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+CRON_SECRET=
+```
 
-## 5. Configure the App
+```bash
+npm run dev
+```
 
-1. Open the deployed app → **Settings** tab
-2. Confirm your location, thresholds, and paste in the Slack webhook URL if not set via env var
-3. Tap **Test** next to the Slack URL to confirm a message arrives in your channel
+App runs at `http://localhost:3000`. Trigger the cron manually:
+```bash
+curl -H "Authorization: Bearer YOUR_CRON_SECRET" http://localhost:3000/api/cron/check-pressure
+```
 
-## 6. Zapier — Benadryl Sync
-
-Create a new Zap:
-
-**Trigger:** Google Calendar → Event Created
-- Calendar: the one your Benadryl entries go to
-- Filter: only when event title contains "Benadryl" (add a Filter step)
-
-**Action:** Webhooks by Zapier → POST
-- URL: `https://your-app.vercel.app/api/webhooks/benadryl`
-- Payload type: JSON
-- Data:
-  ```
-  gcal_event_id  →  Event ID
-  timestamp      →  Start Date & Time
-  title          →  Summary/Title
-  ```
-- Headers:
-  ```
-  x-webhook-secret  →  your BENADRYL_WEBHOOK_SECRET value
-  ```
-
-## 7. Install as PWA (iPhone)
-
-1. Open the app URL in Safari
-2. Tap the Share button → **Add to Home Screen**
-3. The app will behave like a native app with no browser chrome
-
-## 8. Log Today's Episode (Retroactive)
-
-1. Tap **New Event** from the home screen
-2. Set the start time to when your migraine began today (2026-03-15)
-3. Enter your best estimate of the pressure change and duration
-4. After creating the event, use **Log Check-in** to add your symptom progression from the notes in #migraine-symptom
+Push notifications require HTTPS, so they won't work fully on localhost. Test the
+subscription save via the Settings button and confirm the row appears in Supabase.

@@ -10,102 +10,72 @@ A personal PWA (Progressive Web App) that tracks barometric pressure events, sym
 
 ---
 
-## What's Already Done
+## Project Status
 
-- ✅ Full application built — 40 files, passes TypeScript type-check
-- ✅ Pushed to GitHub
-- ✅ `CRON_SECRET` and `BENADRYL_WEBHOOK_SECRET` generated (32-byte hex — Mom has these stored separately, ask her)
-- ✅ `SETUP.md` in the repo with full deployment instructions
-- ✅ Supabase project created, migration run, RLS enabled
+The original single-user app was **built but never deployed or used** — setup stalled after
+creating the Slack webhook (got distracted by other work). **There is no live data.** We are
+now skipping the rest of the v1 launch and going straight to the **multi-user redesign**.
 
-The app just needs to be deployed. Nothing needs to be coded.
+**Where v1 actually got to:**
+- ✅ Full application built, type-checks, pushed to GitHub
+- ✅ Supabase project created, `001_initial.sql` run → **empty v1 tables** (no policies, no data)
+- ✅ `CRON_SECRET` generated (Mary has it stored separately)
+- ✅ Slack incoming webhook created — **now unused; delete it**
+- ⬜ Never deployed to Vercel · ⬜ never installed on iPhone · ⬜ no Zapier set up · ⬜ never used
 
----
+**What's decided (v2 redesign):**
+- ✅ Redesign committed. Full file-by-file plan: [`REDESIGN-PLAN.md`](REDESIGN-PLAN.md)
+- ✅ Prompt that produced the plan: [`REDESIGN-PROMPT.md`](REDESIGN-PROMPT.md)
+- ✅ Clean single v2 schema — **rewrite `001_initial.sql`** and reset the empty DB (no `002`,
+  no data backfill), since there's nothing to preserve.
 
-## What Needs to Happen (In Order)
-
-### ✅ Step 1 — Create a Supabase Project
-
-1. Go to [supabase.com](https://supabase.com) and create a free account (or log in)
-2. Create a new project — name it anything (e.g. `barometric-tracker`)
-3. Once the project is ready, go to **Project Settings → API**
-4. Copy these three values — you'll need them for Vercel:
-   - `SUPABASE_URL` — the Project URL
-   - `SUPABASE_ANON_KEY` — the `anon` / `public` key
-   - `SUPABASE_SERVICE_ROLE_KEY` — the `service_role` key (keep this secret)
-5. Go to **SQL Editor** and run the contents of `supabase/migrations/001_initial.sql` from the repo
-   - This creates all the tables and the `event_outcomes` analysis view
+The redesign replaces: Slack → Web Push (VAPID) · Zapier/GCal Benadryl → in-app meds
+(adds Triptan, Ubrelvy) · single-user → multi-user magic-link auth + per-user settings + full RLS.
+**Initial users:** Mary and Zeph; the system supports any number.
 
 ---
 
-### Step 2 — Create a Slack Incoming Webhook
+## Next Actions (In Order)
 
-1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App → From scratch**
-2. Name it (e.g. `Migraine Tracker`) and choose Mom's personal Slack workspace
-3. Go to **Incoming Webhooks** → toggle **Activate Incoming Webhooks** on
-4. Click **Add New Webhook to Workspace** → select the `#migraine-symptom` channel
-5. Copy the webhook URL — it looks like `https://hooks.slack.com/services/T.../B.../...`
-   - This becomes `SLACK_WEBHOOK_URL` in Vercel
+> Detailed, file-by-file steps live in [`REDESIGN-PLAN.md`](REDESIGN-PLAN.md) §7. This is the tracking checklist.
 
----
+### Build (on a branch — do not deploy mid-flight)
+- [ ] Add deps: `@supabase/ssr`, `web-push`, `@types/web-push`; bump `@supabase/supabase-js` ≥ 2.45
+- [ ] Split `lib/supabase.ts` → `lib/supabase/{client,server,service}.ts`; update all imports
+- [ ] Add `middleware.ts` (session refresh + `/login` redirect)
+- [ ] Add auth UI: `app/login/page.tsx`, `app/auth/callback/route.ts`, `components/SignOutButton.tsx` (+ wire into layout/nav)
+- [ ] Add push: `public/sw.js`, `lib/push.ts`, `lib/push-client.ts`, `app/api/push/subscribe/route.ts`, PWA manifest + icons
+- [ ] **Delete** `lib/slack.ts` and `app/api/webhooks/benadryl/route.ts`
+- [ ] Rewrite `lib/types.ts` (user_id everywhere, new med types, `INTERVENTION_OPTIONS`)
+- [ ] Update cron `app/api/cron/check-pressure/route.ts`: loop all `user_settings`, dedupe Open-Meteo by coord, push instead of Slack
+- [ ] Update `app/settings/page.tsx` (per-user settings, remove Slack field, add Enable Notifications)
+- [ ] Update `app/checkin/page.tsx` (7 med options incl. Triptan/Ubrelvy, set user_id, `entry_method='pwa'`)
+- [ ] Update `app/analysis/page.tsx` and `lib/suggestions.ts` for new med types + user isolation
 
-### Step 3 — Deploy to Vercel
+### Config & secrets
+- [ ] `npx web-push generate-vapid-keys` → set `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+- [ ] Set `NEXT_PUBLIC_SITE_URL`; **remove** `SLACK_WEBHOOK_URL`, `BENADRYL_WEBHOOK_SECRET`, `NEXT_PUBLIC_APP_URL`
+- [ ] Supabase Auth: enable Email/magic-link; set Site URL + `${SITE_URL}/auth/callback` redirect; confirm SMTP
 
-1. Go to [vercel.com](https://vercel.com) and create an account (or log in)
-2. Click **Add New → Project** → import from GitHub → select `barometric-pressure-tracking`
-3. Before deploying, go to **Environment Variables** and add all 7:
+### Schema reset & deploy (clean — no data to preserve)
+- [ ] Reset the empty DB to the clean v2 schema: `supabase db reset` (re-runs the rewritten `001_initial.sql`), **or** in the SQL editor drop the v1 objects and run the new `001_initial.sql`
+- [ ] Deploy the branch to Vercel; set `NEXT_PUBLIC_SITE_URL` to the live URL
+- [ ] E2E: `/login` → magic link → authenticated home (profile auto-created by trigger) → set location/thresholds in Settings
+- [ ] Push test per device: install PWA to Home Screen → Settings → Enable notifications → trigger cron → notification deep-links to `/checkin`
+- [ ] **Delete the unused Slack incoming webhook** (no Zapier was ever set up)
+- [ ] Zeph onboards: `/login`, set own location/thresholds, enable notifications
 
-| Variable | Where to get it |
-|---|---|
-| `SUPABASE_URL` | Supabase → Project Settings → API |
-| `SUPABASE_ANON_KEY` | Supabase → Project Settings → API |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API |
-| `SLACK_WEBHOOK_URL` | Slack app you just created |
-| `CRON_SECRET` | Ask Mom — already generated |
-| `BENADRYL_WEBHOOK_SECRET` | Ask Mom — already generated |
-| `NEXT_PUBLIC_APP_URL` | Set this AFTER first deploy — it's the Vercel URL (e.g. `https://barometric-pressure-tracking.vercel.app`) |
-
-4. Click **Deploy** — let the first build run
-5. Once deployed, copy the live URL and add it as `NEXT_PUBLIC_APP_URL`, then trigger a redeploy
-
----
-
-### Step 4 — Connect Slack to the App
-
-1. Open the deployed app in browser
-2. Go to **Settings**
-3. Paste the Slack webhook URL
-4. Hit **Test** — a test notification should appear in `#migraine-symptom`
+### Docs
+- [x] Update `ARCHITECTURE.md`, `SETUP.md`, `README.md` to match v2 design
 
 ---
 
-### Step 5 — Set Up Zapier (Benadryl Sync)
+## Open Questions (decide before/while building)
 
-Mom already logs Benadryl via a Google Form → Google Calendar. This step connects that calendar to the app so it doesn't have to be re-entered.
-
-1. Go to [zapier.com](https://zapier.com) — use Mom's account
-2. Create a new Zap:
-   - **Trigger:** Google Calendar → Event Created (filter to the Benadryl calendar)
-   - **Action:** Webhooks by Zapier → POST
-   - **URL:** `https://[your-vercel-url]/api/webhooks/benadryl`
-   - **Headers:** `x-webhook-secret: [BENADRYL_WEBHOOK_SECRET]`
-3. Test and turn on the Zap
-
----
-
-### Step 6 — Install the PWA on Mom's iPhone
-
-1. Open the Vercel URL in **Safari** on Mom's iPhone
-2. Tap the **Share** button → **Add to Home Screen**
-3. It will install like a regular app icon
-
----
-
-### Step 7 — Log the First Episode Retroactively
-
-Once everything is running, Mom has notes from a migraine episode in the `#migraine-symptom` Slack channel from March 2026. She'll want to:
-1. Create a new event with the past start time
-2. Add check-ins from her Slack notes
+See [`REDESIGN-PLAN.md`](REDESIGN-PLAN.md) §8 for the full list. The ones that block the build:
+1. Does `detectEvents` take thresholds as params, or read the (now-removed) global `settings`? Refactor if the latter.
+2. Magic-link flow — PKCE `?code=` (plan assumes this) vs. token-hash email template?
+3. Duplicate-event guard — exact `event_start` match vs. overlap-window tolerance per user?
 
 ---
 
@@ -113,23 +83,25 @@ Once everything is running, Mom has notes from a migraine episode in the `#migra
 
 | File | What It Does |
 |---|---|
-| `SETUP.md` | Full step-by-step deployment guide (more technical detail than this doc) |
+| `REDESIGN-PLAN.md` | File-by-file implementation plan for the multi-user redesign |
+| `SETUP.md` | Deployment guide (⚠️ describes v1 — update for redesign) |
 | `lib/openmeteo.ts` | Fetches pressure data + detects events |
-| `lib/slack.ts` | Sends Slack notifications with deep-link button |
+| `lib/push.ts` | Sends Web Push notifications with deep link (replaces `lib/slack.ts`) |
 | `lib/suggestions.ts` | Suggests interventions based on past effectiveness |
 | `app/checkin/page.tsx` | 3-step check-in: severity → symptoms → intervention |
-| `app/api/cron/check-pressure/route.ts` | Runs every 3 hours, detects events, fires notifications |
-| `app/api/webhooks/benadryl/route.ts` | Receives Zapier webhook for Benadryl sync |
-| `supabase/migrations/001_initial.sql` | Full database schema |
+| `app/api/cron/check-pressure/route.ts` | Runs every 3 hours for all users, detects events, fires push |
+| `app/api/push/subscribe/route.ts` | Saves a user's push subscription (replaces the Benadryl webhook) |
+| `supabase/migrations/001_initial.sql` | Schema — **rewritten** to clean v2 (auth, RLS, push, meds); reset the empty DB to apply |
 
 ---
 
 ## Important Notes
 
-- **Location is set to Kingston, OK** (34.2334, -96.7167) — configurable in app Settings after deploy
-- **Alert threshold** defaults to 6 mbar over 3 hours — also configurable
+- **Per-user location** — each user sets their own location/thresholds in Settings (was a single hardcoded global). Mary's migrates to Kingston, OK (34.2334, -96.7167) at 6 mbar / 3 hrs.
 - **Missed check-ins are fine** — the app won't break if she can't interact during a bad episode; retroactive entry is always available
-- **Benadryl is handled separately via Zapier** — don't add a Benadryl option to the intervention UI
+- **Meds are logged in-app now** (not via Zapier). The intervention UI shows all options: Benadryl, Triptan, Ubrelvy, Hydration, Movement, Rest, Other.
+- **Notifications are Web Push** (VAPID), not Slack. On iPhone, the PWA must be added to the Home Screen *before* enabling notifications.
+- **Data is isolated per user via RLS** — no user can ever see another's data. The cron/webhook routes use the service-role key, which bypasses RLS (intended).
 
 ---
 
@@ -167,10 +139,11 @@ Create a `.env.local` file in the project root (never commit this):
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
-SLACK_WEBHOOK_URL=...
 CRON_SECRET=...
-BENADRYL_WEBHOOK_SECRET=...
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:mary.bowler@gmail.com
 ```
 
 Then:
@@ -183,11 +156,12 @@ App runs at `http://localhost:3000`.
 
 ### Key Things to Know
 
-- **No auth system** — this is a single-user personal app. RLS is enabled but policies are permissive for the anon key (it's not a public app, just a personal PWA)
-- **Cron job** runs every 3 hours on Vercel automatically — to test it locally, hit `GET /api/cron/check-pressure` with the header `Authorization: Bearer [CRON_SECRET]`
-- **Benadryl sync** comes in via Zapier webhook, not the UI — don't add Benadryl to the intervention UI
-- **Location defaults** to Kingston, OK — configurable in app Settings after deploy
-- The `event_outcomes` view in Supabase is the basis for the analysis charts — query it directly for ad-hoc data exploration
+- **Auth is Supabase magic-link** (email OTP, no passwords/OAuth) via `@supabase/ssr`. Every user gets isolated data enforced by RLS policies (`auth.uid() = user_id`).
+- **Cron job** runs every 3 hours on Vercel — it now iterates over *all* users' settings. To test locally, hit `GET /api/cron/check-pressure` with `Authorization: Bearer [CRON_SECRET]`.
+- **Meds are logged in the check-in UI** (Benadryl, Triptan, Ubrelvy, Hydration, Movement, Rest, Other) — no Zapier/Google Calendar.
+- **Notifications are Web Push** (VAPID) — users enable them per-device from Settings; subscriptions live in `push_subscriptions`.
+- **Per-user location/thresholds** live in `user_settings` (replaces the old global `settings` table).
+- The `event_outcomes` view (now `security_invoker`, includes `user_id`) is the basis for the analysis charts — query it directly for ad-hoc exploration (returns only your own rows).
 
 ### Architecture Diagram
 
