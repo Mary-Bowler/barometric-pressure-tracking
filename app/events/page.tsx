@@ -1,16 +1,16 @@
 import Link from 'next/link'
-import { createServerClient } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
 import Nav from '@/components/Nav'
 import type { PressureEvent } from '@/lib/types'
 
 async function getEvents(): Promise<PressureEvent[]> {
-  const db = createServerClient()
-  const { data } = await db
+  const supabase = await createClient()
+  const { data } = await supabase
     .from('pressure_events')
     .select('*')
     .order('event_start', { ascending: false })
     .limit(50)
-  return data ?? []
+  return (data ?? []) as PressureEvent[]
 }
 
 function formatDate(iso: string) {

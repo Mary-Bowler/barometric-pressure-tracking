@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import { getSuggestions } from '@/lib/suggestions'
 
 export async function GET(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
   const { searchParams } = new URL(req.url)
   const severity = parseInt(searchParams.get('severity') ?? '5')
 
@@ -9,6 +14,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'severity must be 0–10' }, { status: 400 })
   }
 
-  const suggestions = await getSuggestions(severity)
+  const suggestions = await getSuggestions(supabase, severity)
   return NextResponse.json(suggestions)
 }

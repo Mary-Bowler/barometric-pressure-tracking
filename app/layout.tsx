@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { createClient } from '@/lib/supabase/server'
+import { SignOutButton } from '@/components/SignOutButton'
 
 export const metadata: Metadata = {
   title: 'Pressure Tracker',
@@ -19,7 +21,10 @@ export const viewport: Viewport = {
   themeColor: '#0f172a',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
   return (
     <html lang="en">
       <head>
@@ -27,6 +32,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-slate-900 text-slate-100 antialiased">
         <div className="mx-auto max-w-lg min-h-screen flex flex-col">
+          {user && (
+            <header className="flex items-center justify-end px-4 pt-3 pb-0">
+              <SignOutButton />
+            </header>
+          )}
           {children}
         </div>
       </body>

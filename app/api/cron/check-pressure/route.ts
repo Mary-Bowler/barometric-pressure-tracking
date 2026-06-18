@@ -1,150 +1,169 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createServiceClient } from '@/lib/supabase/service'
 import { fetchPressureForecast, detectPressureEvent } from '@/lib/openmeteo'
-import { sendEventNotification } from '@/lib/slack'
-import type { Settings } from '@/lib/types'
+import { sendPushToUser } from '@/lib/push'
+import type { UserSettings } from '@/lib/types'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  // Verify cron secret
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const db = createServerClient()
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://your-app.vercel.app'
-
-  // Load settings
-  const { data: settingsRows } = await db.from('settings').select('key, value')
-  const settings: Record<string, string> = {}
-  for (const row of settingsRows ?? []) settings[row.key] = row.value
-
-  const lat = parseFloat(settings.location_lat ?? '34.2334')
-  const lng = parseFloat(settings.location_lng ?? '-96.7167')
-  const thresholdMbar = parseFloat(settings.alert_threshold_mbar ?? '6')
-  const thresholdHours = parseFloat(settings.alert_threshold_hours ?? '3')
-  const webhookUrl = settings.slack_webhook_url || process.env.SLACK_WEBHOOK_URL
-
-  if (!webhookUrl) {
-    return NextResponse.json({ ok: false, reason: 'No Slack webhook configured' })
-  }
-
-  // === Step 1: Send pending midpoint/peak notifications for active events ===
+  const db = createServiceClient()
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://your-app.vercel.app'
   const now = new Date()
-  const { data: activeEvents } = await db
+
+  // --- Step 1: Send pending midpoint/peak notifications ---
+  const { data: dueMidpoint } = await db
     .from('pressure_events')
-    .select('*')
+    .select('id, user_id')
     .eq('status', 'active')
+    .lte('midpoint_due_at', now.toISOString())
+    .is('midpoint_notified_at', null)
 
-  for (const event of activeEvents ?? []) {
-    // Midpoint
-    if (
-      event.midpoint_due_at &&
-      !event.midpoint_notified_at &&
-      new Date(event.midpoint_due_at) <= now
-    ) {
-      try {
-        await sendEventNotification(event, 'midpoint', appUrl, webhookUrl)
-        await db
-          .from('pressure_events')
-          .update({ midpoint_notified_at: now.toISOString() })
-          .eq('id', event.id)
-      } catch (e) {
-        console.error('Failed to send midpoint notification', e)
-      }
-    }
-
-    // Peak
-    if (
-      event.peak_due_at &&
-      !event.peak_notified_at &&
-      new Date(event.peak_due_at) <= now
-    ) {
-      try {
-        await sendEventNotification(event, 'peak', appUrl, webhookUrl)
-        await db
-          .from('pressure_events')
-          .update({ peak_notified_at: now.toISOString() })
-          .eq('id', event.id)
-      } catch (e) {
-        console.error('Failed to send peak notification', e)
-      }
-    }
-
-    // Auto-complete events that are past their end time
-    if (event.event_end && new Date(event.event_end) < now) {
+  for (const event of dueMidpoint ?? []) {
+    try {
+      await sendPushToUser(event.user_id, {
+        title: 'Mid-event check-in',
+        body: 'How are you feeling now?',
+        url: `${siteUrl}/checkin?event_id=${event.id}&prompt=midpoint`,
+      })
       await db
         .from('pressure_events')
-        .update({ status: 'completed' })
+        .update({ midpoint_notified_at: now.toISOString() })
         .eq('id', event.id)
+    } catch (e) {
+      console.error('[cron] midpoint push failed', event.id, e)
     }
   }
 
-  // === Step 2: Detect new events ===
-  let readings
-  try {
-    readings = await fetchPressureForecast(lat, lng)
-  } catch (e) {
-    return NextResponse.json({ ok: false, reason: 'Open-Meteo fetch failed', error: String(e) })
+  const { data: duePeak } = await db
+    .from('pressure_events')
+    .select('id, user_id')
+    .eq('status', 'active')
+    .lte('peak_due_at', now.toISOString())
+    .is('peak_notified_at', null)
+
+  for (const event of duePeak ?? []) {
+    try {
+      await sendPushToUser(event.user_id, {
+        title: 'Peak check-in',
+        body: 'Pressure should be peaking now — log how you feel.',
+        url: `${siteUrl}/checkin?event_id=${event.id}&prompt=peak`,
+      })
+      await db
+        .from('pressure_events')
+        .update({ peak_notified_at: now.toISOString() })
+        .eq('id', event.id)
+    } catch (e) {
+      console.error('[cron] peak push failed', event.id, e)
+    }
   }
 
-  const detected = detectPressureEvent(readings, thresholdMbar, thresholdHours)
-  if (!detected) {
-    return NextResponse.json({ ok: true, reason: 'No threshold-crossing event detected' })
-  }
-
-  // Check for duplicate: any active event starting within 6 hours of this one
-  const windowStart = new Date(new Date(detected.event_start).getTime() - 6 * 3_600_000).toISOString()
-  const windowEnd = new Date(new Date(detected.event_start).getTime() + 6 * 3_600_000).toISOString()
-
-  const { data: existing } = await db
+  // Auto-complete events past their end time
+  const { data: overdueEvents } = await db
     .from('pressure_events')
     .select('id')
-    .gte('event_start', windowStart)
-    .lte('event_start', windowEnd)
-    .eq('source', 'auto')
-    .limit(1)
+    .eq('status', 'active')
+    .lt('event_end', now.toISOString())
 
-  if (existing && existing.length > 0) {
-    return NextResponse.json({ ok: true, reason: 'Duplicate event, skipping' })
+  for (const event of overdueEvents ?? []) {
+    await db.from('pressure_events').update({ status: 'completed' }).eq('id', event.id)
   }
 
-  // Create the event
-  const eventStart = new Date(detected.event_start)
-  const durationHrs = detected.forecasted_duration_hrs
-  const midpointDue = new Date(eventStart.getTime() + (durationHrs / 2) * 3_600_000)
-  const peakDue = new Date(eventStart.getTime() + durationHrs * 3_600_000)
+  // --- Step 2: Detect new events for every user ---
+  const { data: allSettings, error: settingsError } = await db
+    .from('user_settings')
+    .select('*')
+    .returns<UserSettings[]>()
 
-  const { data: newEvent, error: insertError } = await db
-    .from('pressure_events')
-    .insert({
-      event_start: detected.event_start,
-      event_end: detected.event_end,
-      direction: detected.direction,
-      forecasted_change_mbar: detected.forecasted_change_mbar,
-      forecasted_duration_hrs: detected.forecasted_duration_hrs,
-      actual_pressure_start: detected.actual_pressure_start,
-      source: 'auto',
-      midpoint_due_at: midpointDue.toISOString(),
-      peak_due_at: peakDue.toISOString(),
-    })
-    .select()
-    .single()
-
-  if (insertError || !newEvent) {
-    return NextResponse.json({ ok: false, reason: 'Insert failed', error: insertError?.message })
+  if (settingsError || !allSettings?.length) {
+    return NextResponse.json({ ok: true, reason: 'No user settings found' })
   }
 
-  // Send start notification
-  try {
-    await sendEventNotification(newEvent, 'start', appUrl, webhookUrl)
-    await db
+  // Dedupe Open-Meteo fetches by rounded coordinate pair
+  const forecastCache = new Map<string, Awaited<ReturnType<typeof fetchPressureForecast>>>()
+  const cacheKey = (lat: number, lng: number) => `${lat.toFixed(3)},${lng.toFixed(3)}`
+
+  let eventsCreated = 0
+
+  for (const s of allSettings) {
+    const key = cacheKey(s.location_lat, s.location_lng)
+    let readings = forecastCache.get(key)
+    if (!readings) {
+      try {
+        readings = await fetchPressureForecast(s.location_lat, s.location_lng)
+        forecastCache.set(key, readings)
+      } catch (e) {
+        console.error(`[cron] forecast fetch failed for user ${s.user_id}`, e)
+        continue
+      }
+    }
+
+    const detected = detectPressureEvent(readings, s.alert_threshold_mbar, s.alert_threshold_hours)
+    if (!detected) continue
+
+    // Duplicate guard: skip if an active event exists within ±6 hours of this start
+    const windowStart = new Date(new Date(detected.event_start).getTime() - 6 * 3_600_000).toISOString()
+    const windowEnd = new Date(new Date(detected.event_start).getTime() + 6 * 3_600_000).toISOString()
+
+    const { data: existing } = await db
       .from('pressure_events')
-      .update({ midpoint_notified_at: null }) // clear just in case
-      .eq('id', newEvent.id)
-  } catch (e) {
-    console.error('Failed to send start notification', e)
+      .select('id')
+      .eq('user_id', s.user_id)
+      .eq('source', 'auto')
+      .gte('event_start', windowStart)
+      .lte('event_start', windowEnd)
+      .limit(1)
+
+    if (existing && existing.length > 0) continue
+
+    const eventStart = new Date(detected.event_start)
+    const durationHrs = detected.forecasted_duration_hrs
+    const midpointDue = new Date(eventStart.getTime() + (durationHrs / 2) * 3_600_000)
+    const peakDue = new Date(eventStart.getTime() + durationHrs * 3_600_000)
+
+    const { data: newEvent, error: insertError } = await db
+      .from('pressure_events')
+      .insert({
+        user_id: s.user_id,
+        event_start: detected.event_start,
+        event_end: detected.event_end,
+        direction: detected.direction,
+        forecasted_change_mbar: detected.forecasted_change_mbar,
+        forecasted_duration_hrs: detected.forecasted_duration_hrs,
+        actual_pressure_start: detected.actual_pressure_start,
+        source: 'auto',
+        midpoint_due_at: midpointDue.toISOString(),
+        peak_due_at: peakDue.toISOString(),
+      })
+      .select()
+      .single()
+
+    if (insertError || !newEvent) {
+      console.error(`[cron] insert failed for user ${s.user_id}`, insertError?.message)
+      continue
+    }
+
+    eventsCreated++
+
+    try {
+      await sendPushToUser(s.user_id, {
+        title: `Pressure ${detected.direction} — ${s.location_label || 'your location'}`,
+        body: `${detected.forecasted_change_mbar} mbar over ${detected.forecasted_duration_hrs}h. Tap to check in.`,
+        url: `${siteUrl}/checkin?event_id=${newEvent.id}&prompt=start`,
+      })
+    } catch (e) {
+      console.error(`[cron] start push failed for user ${s.user_id}`, e)
+    }
   }
 
-  return NextResponse.json({ ok: true, event: newEvent })
+  return NextResponse.json({
+    ok: true,
+    users: allSettings.length,
+    eventsCreated,
+  })
 }

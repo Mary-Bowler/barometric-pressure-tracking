@@ -1,15 +1,44 @@
 export type Direction = 'rising' | 'falling'
 export type EventStatus = 'active' | 'completed'
 export type EventSource = 'auto' | 'manual'
-export type EntryMethod = 'pwa' | 'slack'
+export type EntryMethod = 'pwa'
 export type PromptType = 'start' | 'midpoint' | 'peak' | 'manual'
-export type InterventionType = 'movement' | 'rest' | 'benadryl' | 'hydration' | 'other'
-export type InterventionSource = 'manual' | 'benadryl_gcal'
+export type InterventionType = 'movement' | 'rest' | 'benadryl' | 'triptan' | 'ubrelvy' | 'hydration' | 'other'
+export type InterventionSource = 'manual'
 
 export type SymptomType = 'head_pressure' | 'migraine' | 'fatigue' | 'cognitive' | 'other'
 
+export const INTERVENTION_OPTIONS: { value: InterventionType; label: string }[] = [
+  { value: 'benadryl', label: 'Benadryl' },
+  { value: 'triptan', label: 'Triptan' },
+  { value: 'ubrelvy', label: 'Ubrelvy' },
+  { value: 'hydration', label: 'Hydration' },
+  { value: 'movement', label: 'Movement' },
+  { value: 'rest', label: 'Rest' },
+  { value: 'other', label: 'Other' },
+]
+
+export interface Profile {
+  id: string
+  display_name: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface UserSettings {
+  user_id: string
+  location_lat: number
+  location_lng: number
+  location_label: string
+  alert_threshold_mbar: number
+  alert_threshold_hours: number
+  created_at: string
+  updated_at: string
+}
+
 export interface PressureEvent {
   id: string
+  user_id: string
   created_at: string
   event_start: string
   event_end: string | null
@@ -31,6 +60,7 @@ export interface PressureEvent {
 
 export interface SymptomCheckin {
   id: string
+  user_id: string
   created_at: string
   event_id: string | null
   recorded_at: string
@@ -43,6 +73,7 @@ export interface SymptomCheckin {
 
 export interface Intervention {
   id: string
+  user_id: string
   created_at: string
   event_id: string | null
   checkin_id: string | null
@@ -53,22 +84,8 @@ export interface Intervention {
   notes: string | null
 }
 
-export interface Setting {
-  key: string
-  value: string
-  updated_at: string
-}
-
-export interface Settings {
-  location_lat: string
-  location_lng: string
-  location_label: string
-  alert_threshold_mbar: string
-  alert_threshold_hours: string
-  slack_webhook_url: string
-}
-
 export interface EventOutcome {
+  user_id: string
   id: string
   event_start: string
   direction: Direction

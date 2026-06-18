@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET(req: NextRequest) {
-  const db = createServerClient()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
   const { searchParams } = new URL(req.url)
   const eventId = searchParams.get('event_id')
 
-  let query = db
+  let query = supabase
     .from('symptom_checkins')
     .select('*')
     .order('recorded_at', { ascending: false })
@@ -21,15 +24,19 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const db = createServerClient()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
   const body = await req.json()
 
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from('symptom_checkins')
     .insert({
+      user_id: user.id,
       event_id: body.event_id ?? null,
       recorded_at: body.recorded_at ?? new Date().toISOString(),
-      entry_method: body.entry_method ?? 'pwa',
+      entry_method: 'pwa',
       severity: parseInt(body.severity),
       symptom_types: body.symptom_types ?? [],
       note: body.note ?? null,
@@ -39,9 +46,6 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  // If this is the first checkin for an event and severity > 0, ensure first_intervention_at is set
-  // when an intervention is later logged — nothing needed here
 
   return NextResponse.json(data, { status: 201 })
 }

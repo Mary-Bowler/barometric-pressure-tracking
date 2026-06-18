@@ -5,15 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import SeveritySlider from '@/components/SeveritySlider'
 import SymptomChips from '@/components/SymptomChips'
 import InterventionSuggestions from '@/components/InterventionSuggestions'
+import { INTERVENTION_OPTIONS } from '@/lib/types'
 import type { SymptomType, InterventionType, PressureEvent } from '@/lib/types'
-
-const INTERVENTION_TYPES: { value: InterventionType; label: string }[] = [
-  { value: 'movement', label: 'Movement' },
-  { value: 'rest', label: 'Rest' },
-  { value: 'benadryl', label: 'Benadryl' },
-  { value: 'hydration', label: 'Hydration' },
-  { value: 'other', label: 'Other' },
-]
 
 type Step = 'checkin' | 'intervention' | 'done'
 
@@ -34,7 +27,6 @@ function CheckinForm() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  // Load event details
   useEffect(() => {
     if (!eventId) return
     fetch(`/api/events?status=active&limit=10`)
@@ -75,7 +67,6 @@ function CheckinForm() {
   }
 
   async function logIntervention(type: InterventionType) {
-    if (!type) return
     await fetch('/api/interventions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -109,7 +100,9 @@ function CheckinForm() {
     return (
       <div className="flex flex-col gap-6 px-4 pt-6 pb-24">
         <div>
-          <h1 className="text-xl font-bold text-slate-100 mb-1">Checked in — severity {severity}</h1>
+          <h1 className="text-xl font-bold text-slate-100 mb-1">
+            Checked in — severity {severity}
+          </h1>
           <p className="text-slate-400 text-sm">Did you try anything? (optional)</p>
         </div>
 
@@ -121,15 +114,15 @@ function CheckinForm() {
 
         <div className="space-y-2">
           <p className="text-xs text-slate-500 uppercase tracking-wide">All options</p>
-          <div className="flex flex-wrap gap-2">
-            {INTERVENTION_TYPES.map(t => (
+          <div className="grid grid-cols-2 gap-2">
+            {INTERVENTION_OPTIONS.map(opt => (
               <button
-                key={t.value}
+                key={opt.value}
                 type="button"
-                onClick={() => logIntervention(t.value)}
-                className="px-4 py-2.5 rounded-full text-sm font-medium bg-slate-800 border border-slate-600 text-slate-300 active:bg-slate-700"
+                onClick={() => logIntervention(opt.value)}
+                className="py-3.5 rounded-xl text-sm font-medium bg-slate-800 border border-slate-600 text-slate-300 active:bg-slate-700 transition-colors"
               >
-                {t.label}
+                {opt.label}
               </button>
             ))}
           </div>
@@ -147,7 +140,6 @@ function CheckinForm() {
 
   return (
     <div className="flex flex-col gap-6 px-4 pt-6 pb-24">
-      {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-slate-100">How are you feeling?</h1>
         {event && (
@@ -158,13 +150,10 @@ function CheckinForm() {
         )}
       </div>
 
-      {/* Severity */}
       <SeveritySlider value={severity} onChange={setSeverity} />
 
-      {/* Symptoms */}
       <SymptomChips selected={symptoms} onChange={setSymptoms} />
 
-      {/* Note */}
       <div className="space-y-2">
         <label className="text-sm text-slate-400 uppercase tracking-wide">Note (optional)</label>
         <textarea
@@ -176,7 +165,6 @@ function CheckinForm() {
         />
       </div>
 
-      {/* Retroactive time */}
       <div>
         <button
           type="button"
@@ -197,7 +185,6 @@ function CheckinForm() {
 
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
-      {/* Submit */}
       <button
         onClick={submitCheckin}
         disabled={submitting}

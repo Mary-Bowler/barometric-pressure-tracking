@@ -39,18 +39,24 @@ The redesign replaces: Slack → Web Push (VAPID) · Zapier/GCal Benadryl → in
 
 > Detailed, file-by-file steps live in [`REDESIGN-PLAN.md`](REDESIGN-PLAN.md) §7. This is the tracking checklist.
 
-### Build (on a branch — do not deploy mid-flight)
-- [ ] Add deps: `@supabase/ssr`, `web-push`, `@types/web-push`; bump `@supabase/supabase-js` ≥ 2.45
-- [ ] Split `lib/supabase.ts` → `lib/supabase/{client,server,service}.ts`; update all imports
-- [ ] Add `middleware.ts` (session refresh + `/login` redirect)
-- [ ] Add auth UI: `app/login/page.tsx`, `app/auth/callback/route.ts`, `components/SignOutButton.tsx` (+ wire into layout/nav)
-- [ ] Add push: `public/sw.js`, `lib/push.ts`, `lib/push-client.ts`, `app/api/push/subscribe/route.ts`, PWA manifest + icons
-- [ ] **Delete** `lib/slack.ts` and `app/api/webhooks/benadryl/route.ts`
-- [ ] Rewrite `lib/types.ts` (user_id everywhere, new med types, `INTERVENTION_OPTIONS`)
-- [ ] Update cron `app/api/cron/check-pressure/route.ts`: loop all `user_settings`, dedupe Open-Meteo by coord, push instead of Slack
-- [ ] Update `app/settings/page.tsx` (per-user settings, remove Slack field, add Enable Notifications)
-- [ ] Update `app/checkin/page.tsx` (7 med options incl. Triptan/Ubrelvy, set user_id, `entry_method='pwa'`)
-- [ ] Update `app/analysis/page.tsx` and `lib/suggestions.ts` for new med types + user isolation
+### Build ✅ complete — TypeScript passes clean
+- [x] Add deps: `@supabase/ssr`, `web-push`, `@types/web-push`
+- [x] Split `lib/supabase.ts` → `lib/supabase/{client,server,service}.ts`; updated all imports
+- [x] Add `middleware.ts` (session refresh + `/login` redirect)
+- [x] Add auth UI: `app/login/page.tsx`, `app/auth/callback/route.ts`, `components/SignOutButton.tsx` (wired into layout)
+- [x] Add push: `public/sw.js`, `lib/push.ts`, `lib/push-client.ts`, `app/api/push/subscribe/route.ts`
+- [x] **Deleted** `lib/slack.ts`, `lib/supabase.ts`, `app/api/webhooks/benadryl/route.ts`, `app/api/settings/test-slack/route.ts`
+- [x] Rewrite `lib/types.ts` (user_id everywhere, triptan + ubrelvy, `INTERVENTION_OPTIONS`)
+- [x] Rewrite `app/api/cron/check-pressure/route.ts`: loops all `user_settings`, dedupes Open-Meteo, push instead of Slack
+- [x] Rewrite `app/api/settings/route.ts`: reads/writes `user_settings`, auth-gated
+- [x] Update all API routes (`/api/checkins`, `/api/events`, `/api/interventions`, `/api/export`, `/api/suggestions`) — authed, user_id in inserts
+- [x] Rewrite `app/settings/page.tsx` (per-user settings, push enable button, no Slack field)
+- [x] Update `app/checkin/page.tsx` (7 med options via `INTERVENTION_OPTIONS`, `entry_method='pwa'`)
+- [x] Update `app/page.tsx`, `app/events/page.tsx`, `app/analysis/page.tsx` — authed server client
+- [x] Update `app/layout.tsx` — sign-out button in header when logged in
+- [x] Update `lib/suggestions.ts` — no benadryl_gcal filter, accepts db client as param
+- [x] Update `components/InterventionSuggestions.tsx` — triptan + ubrelvy labels/icons
+- [x] Rewrite `supabase/migrations/001_initial.sql` — clean v2 schema
 
 ### Config & secrets
 - [ ] `npx web-push generate-vapid-keys` → set `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`

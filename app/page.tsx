@@ -1,60 +1,59 @@
 import Link from 'next/link'
-import { createServerClient } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
 import { getCurrentPressure } from '@/lib/openmeteo'
 import ActiveEventBanner from '@/components/ActiveEventBanner'
 import Nav from '@/components/Nav'
-import type { PressureEvent, SymptomCheckin } from '@/lib/types'
+import type { PressureEvent, SymptomCheckin, UserSettings } from '@/lib/types'
 
-async function getActiveEvent(): Promise<PressureEvent | null> {
-  const db = createServerClient()
-  const { data } = await db
-    .from('pressure_events')
-    .select('*')
-    .eq('status', 'active')
-    .order('event_start', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  return data
+async function getData() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { activeEvent: null, recentCheckins: [], settings: null }
+
+  const [eventRes, checkinsRes, settingsRes] = await Promise.all([
+    supabase
+      .from('pressure_events')
+      .select('*')
+      .eq('status', 'active')
+      .order('event_start', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('symptom_checkins')
+      .select('*')
+      .order('recorded_at', { ascending: false })
+      .limit(3),
+    supabase
+      .from('user_settings')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle(),
+  ])
+
+  return {
+    activeEvent: eventRes.data as PressureEvent | null,
+    recentCheckins: (checkinsRes.data ?? []) as SymptomCheckin[],
+    settings: settingsRes.data as UserSettings | null,
+  }
 }
 
-async function getRecentCheckins(): Promise<SymptomCheckin[]> {
-  const db = createServerClient()
-  const { data } = await db
-    .from('symptom_checkins')
-    .select('*')
-    .order('recorded_at', { ascending: false })
-    .limit(3)
-  return data ?? []
-}
-
-async function getSettings() {
-  const db = createServerClient()
-  const { data } = await db.from('settings').select('key, value')
-  const s: Record<string, string> = {}
-  for (const row of data ?? []) s[row.key] = row.value
-  return s
-}
-
-function formatTime(iso: string): string {
+function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 export const revalidate = 0
 
 export default async function Home() {
-  const [activeEvent, recentCheckins, settings] = await Promise.all([
-    getActiveEvent(),
-    getRecentCheckins(),
-    getSettings(),
-  ])
+  const { activeEvent, recentCheckins, settings } = await getData()
 
-  const lat = parseFloat(settings.location_lat ?? '34.2334')
-  const lng = parseFloat(settings.location_lng ?? '-96.7167')
-  const currentPressure = await getCurrentPressure(lat, lng)
+  const currentPressure =
+    settings
+      ? await getCurrentPressure(settings.location_lat, settings.location_lng)
+      : null
 
   const checkinHref = activeEvent
     ? `/checkin?event_id=${activeEvent.id}&prompt=manual`
@@ -62,11 +61,12 @@ export default async function Home() {
 
   return (
     <main className="flex-1 px-4 pt-6 pb-24">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-slate-100">Pressure Tracker</h1>
-          <p className="text-sm text-slate-400">{settings.location_label ?? 'Kingston, OK'}</p>
+          <p className="text-sm text-slate-400">
+            {settings?.location_label || 'Set your location in Settings'}
+          </p>
         </div>
         {currentPressure && (
           <div className="text-right">
@@ -76,10 +76,8 @@ export default async function Home() {
         )}
       </div>
 
-      {/* Active event */}
       {activeEvent && <ActiveEventBanner event={activeEvent} />}
 
-      {/* Primary action */}
       <Link
         href={checkinHref}
         className="block w-full bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white text-center text-lg font-semibold py-4 rounded-xl mb-3 transition-colors"
@@ -87,23 +85,21 @@ export default async function Home() {
         Log Check-in
       </Link>
 
-      {/* Secondary actions */}
       <div className="grid grid-cols-2 gap-3 mb-8">
         <Link
           href="/events/new"
-          className="bg-slate-800 hover:bg-slate-700 active:bg-slate-900 border border-slate-700 text-slate-200 text-center text-sm font-medium py-3 rounded-xl transition-colors"
+          className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-center text-sm font-medium py-3 rounded-xl transition-colors"
         >
           New Event
         </Link>
         <Link
           href={activeEvent ? `/events?highlight=${activeEvent.id}` : '/events'}
-          className="bg-slate-800 hover:bg-slate-700 active:bg-slate-900 border border-slate-700 text-slate-200 text-center text-sm font-medium py-3 rounded-xl transition-colors"
+          className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-center text-sm font-medium py-3 rounded-xl transition-colors"
         >
           All Events
         </Link>
       </div>
 
-      {/* Recent check-ins */}
       {recentCheckins.length > 0 && (
         <section>
           <h2 className="text-xs text-slate-500 uppercase tracking-wide mb-3">Recent</h2>

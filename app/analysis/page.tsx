@@ -1,43 +1,41 @@
-import { createServerClient } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
 import Nav from '@/components/Nav'
 import CorrelationCharts from '@/components/CorrelationChart'
 import type { EventOutcome } from '@/lib/types'
 
 async function getOutcomes(): Promise<EventOutcome[]> {
-  const db = createServerClient()
-  const { data } = await db
+  const supabase = await createClient()
+  const { data } = await supabase
     .from('event_outcomes')
     .select('*')
     .order('event_start', { ascending: false })
     .limit(200)
-  return (data as EventOutcome[]) ?? []
+  return (data ?? []) as EventOutcome[]
 }
 
 export const revalidate = 0
 
 export default async function AnalysisPage() {
   const outcomes = await getOutcomes()
-
   const withData = outcomes.filter(o => o.peak_severity != null)
 
-  const avgByDirection = {
-    rising: withData.filter(o => o.direction === 'rising'),
-    falling: withData.filter(o => o.direction === 'falling'),
-  }
-
   const avgRising =
-    avgByDirection.rising.length > 0
+    withData.filter(o => o.direction === 'rising').length > 0
       ? (
-          avgByDirection.rising.reduce((s, o) => s + (o.peak_severity ?? 0), 0) /
-          avgByDirection.rising.length
+          withData
+            .filter(o => o.direction === 'rising')
+            .reduce((s, o) => s + (o.peak_severity ?? 0), 0) /
+          withData.filter(o => o.direction === 'rising').length
         ).toFixed(1)
       : '—'
 
   const avgFalling =
-    avgByDirection.falling.length > 0
+    withData.filter(o => o.direction === 'falling').length > 0
       ? (
-          avgByDirection.falling.reduce((s, o) => s + (o.peak_severity ?? 0), 0) /
-          avgByDirection.falling.length
+          withData
+            .filter(o => o.direction === 'falling')
+            .reduce((s, o) => s + (o.peak_severity ?? 0), 0) /
+          withData.filter(o => o.direction === 'falling').length
         ).toFixed(1)
       : '—'
 
@@ -45,10 +43,7 @@ export default async function AnalysisPage() {
     <main className="flex-1 px-4 pt-6 pb-24">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">Analysis</h1>
-        <a
-          href="/api/export"
-          className="text-indigo-400 text-sm font-medium"
-        >
+        <a href="/api/export" className="text-indigo-400 text-sm font-medium">
           Export CSV
         </a>
       </div>
@@ -61,7 +56,6 @@ export default async function AnalysisPage() {
         </div>
       )}
 
-      {/* Summary stats */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="bg-slate-800 rounded-xl p-3 text-center">
           <p className="text-2xl font-bold text-slate-100">{outcomes.length}</p>

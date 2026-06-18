@@ -7,6 +7,8 @@ const TYPE_LABELS: Record<InterventionType, string> = {
   movement: 'Movement',
   rest: 'Rest',
   benadryl: 'Benadryl',
+  triptan: 'Triptan',
+  ubrelvy: 'Ubrelvy',
   hydration: 'Hydration',
   other: 'Other',
 }
@@ -15,6 +17,8 @@ const TYPE_ICONS: Record<InterventionType, string> = {
   movement: '🚶',
   rest: '🛌',
   benadryl: '💊',
+  triptan: '💊',
+  ubrelvy: '💊',
   hydration: '💧',
   other: '✦',
 }
