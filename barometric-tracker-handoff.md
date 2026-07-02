@@ -59,6 +59,7 @@ The redesign replaces: Slack → Web Push (VAPID) · Zapier/GCal Benadryl → in
 - [x] Rewrite `supabase/migrations/001_initial.sql` — clean v2 schema
 
 ### Config & secrets
+- [x] `CRON_SECRET` — generated and added to Vercel; saved in password manager as **"Cron Secret"**
 - [ ] `npx web-push generate-vapid-keys` → set `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
 - [ ] Set `NEXT_PUBLIC_SITE_URL`; **remove** `SLACK_WEBHOOK_URL`, `BENADRYL_WEBHOOK_SECRET`, `NEXT_PUBLIC_APP_URL`
 - [ ] Supabase Auth: enable Email/magic-link; set Site URL + `${SITE_URL}/auth/callback` redirect; confirm SMTP

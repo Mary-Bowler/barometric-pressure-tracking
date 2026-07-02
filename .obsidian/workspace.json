@@ -183,8 +183,9 @@
       "bases:Create new base": false
     }
   },
-  "active": "d1ff41338d8b4bfa",
+  "active": "3d19fe83576fb85e",
   "lastOpenFiles": [
+    "barometric-tracker-handoff.md.tmp.43288.ab06e37d59df",
     "node_modules/@types/json5/index.d.ts",
     "node_modules/@types/d3-timer/index.d.ts",
     "node_modules/d3-color/src/math.js",
@@ -195,7 +196,6 @@
     "node_modules/d3-color/src/color.js",
     "node_modules/d3-color/dist/d3-color.min.js",
     "node_modules/d3-color/dist/d3-color.js",
-    "node_modules/d3-color/src",
     "node_modules/d3-color/README.md",
     "node_modules/http_ece/README.md",
     "node_modules/@types/web-push/README.md",
