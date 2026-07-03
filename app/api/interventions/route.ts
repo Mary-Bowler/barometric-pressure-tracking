@@ -71,9 +71,18 @@ export async function PATCH(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { id, ...updates } = body
+  const { id } = body
 
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+
+  // Allowlist: never spread the raw body into .update()
+  const updates: Record<string, unknown> = {}
+  for (const key of ['type', 'perceived_effectiveness', 'notes', 'recorded_at'] as const) {
+    if (key in body) updates[key] = body[key]
+  }
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'no updatable fields provided' }, { status: 400 })
+  }
 
   // RLS ensures users can only update their own rows; user_id filter is belt-and-suspenders
   const { data, error } = await supabase

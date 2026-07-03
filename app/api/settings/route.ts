@@ -23,15 +23,27 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
 
+  const lat = Number(body.location_lat)
+  const lng = Number(body.location_lng)
+  const thresholdMbar = Number(body.alert_threshold_mbar ?? 6)
+  const thresholdHours = Number(body.alert_threshold_hours ?? 3)
+
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
+    return NextResponse.json({ error: 'location_lat and location_lng must be valid coordinates' }, { status: 400 })
+  }
+  if (!Number.isFinite(thresholdMbar) || thresholdMbar <= 0 || !Number.isFinite(thresholdHours) || thresholdHours <= 0) {
+    return NextResponse.json({ error: 'alert thresholds must be positive numbers' }, { status: 400 })
+  }
+
   const { error } = await supabase
     .from('user_settings')
     .upsert({
       user_id: user.id,
-      location_lat: parseFloat(body.location_lat),
-      location_lng: parseFloat(body.location_lng),
+      location_lat: lat,
+      location_lng: lng,
       location_label: body.location_label ?? '',
-      alert_threshold_mbar: parseFloat(body.alert_threshold_mbar ?? 6),
-      alert_threshold_hours: parseFloat(body.alert_threshold_hours ?? 3),
+      alert_threshold_mbar: thresholdMbar,
+      alert_threshold_hours: thresholdHours,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
 

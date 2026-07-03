@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentPressure } from '@/lib/openmeteo'
 import ActiveEventBanner from '@/components/ActiveEventBanner'
 import Nav from '@/components/Nav'
+import LocalTime from '@/components/LocalTime'
 import type { PressureEvent, SymptomCheckin, UserSettings } from '@/lib/types'
 
 async function getData() {
@@ -35,14 +36,6 @@ async function getData() {
     recentCheckins: (checkinsRes.data ?? []) as SymptomCheckin[],
     settings: settingsRes.data as UserSettings | null,
   }
-}
-
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 export const revalidate = 0
@@ -126,8 +119,8 @@ export default async function Home() {
                   {c.note && <p className="text-xs text-slate-500 truncate max-w-[200px]">{c.note}</p>}
                 </div>
                 <div className="text-right text-xs text-slate-500">
-                  <p>{formatTime(c.recorded_at)}</p>
-                  <p>{formatDate(c.recorded_at)}</p>
+                  <p><LocalTime iso={c.recorded_at} mode="time" /></p>
+                  <p><LocalTime iso={c.recorded_at} mode="date" /></p>
                 </div>
               </div>
             ))}

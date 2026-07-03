@@ -62,7 +62,7 @@ Vercel Cron (3hr)
               └── threshold crossed → insert pressure_event (user_id)
                     └── Web Push to all user's subscriptions
                           └── service worker shows notification
-                                └── tap → /checkin?event=<id>&prompt=start
+                                └── tap → /checkin?event_id=<id>&prompt=start
                                       └── severity slider + symptom chips + submit
                                             └── intervention suggestions (based on history)
 

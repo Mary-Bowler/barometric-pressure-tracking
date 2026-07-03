@@ -7,13 +7,27 @@ import type { UserSettings } from '@/lib/types'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Fail closed: without a configured secret the comparison below would
+  // accept the literal header "Bearer undefined"
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) {
+    console.error('[cron] CRON_SECRET is not set — refusing all requests')
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const authHeader = req.headers.get('authorization')
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  if (!siteUrl) {
+    // Better to fail loudly than push notifications with dead links
+    console.error('[cron] NEXT_PUBLIC_SITE_URL is not set')
+    return NextResponse.json({ error: 'NEXT_PUBLIC_SITE_URL not configured' }, { status: 500 })
+  }
+
   const db = createServiceClient()
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://your-app.vercel.app'
   const now = new Date()
 
   // --- Step 1: Send pending midpoint/peak notifications ---
@@ -64,14 +78,14 @@ export async function GET(req: NextRequest) {
   }
 
   // Auto-complete events past their end time
-  const { data: overdueEvents } = await db
+  const { error: completeError } = await db
     .from('pressure_events')
-    .select('id')
+    .update({ status: 'completed' })
     .eq('status', 'active')
     .lt('event_end', now.toISOString())
 
-  for (const event of overdueEvents ?? []) {
-    await db.from('pressure_events').update({ status: 'completed' }).eq('id', event.id)
+  if (completeError) {
+    console.error('[cron] auto-complete failed', completeError.message)
   }
 
   // --- Step 2: Detect new events for every user ---

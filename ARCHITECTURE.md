@@ -48,7 +48,7 @@ flowchart TD
 
     %% Push → check-in
     PUSH -->|"notification with\ndeep-link"| SW
-    SW -->|"tap → /checkin?event=id"| PWA
+    SW -->|"tap → /checkin?event_id=id"| PWA
 
     %% Push subscription management
     PWA -->|"subscribe (VAPID)"| SW
@@ -80,7 +80,7 @@ flowchart TD
 | New user signs in for first time | `on_auth_user_created` trigger | `profiles` row auto-created |
 | Every 3 hours | Vercel cron → reads all `user_settings` → Open-Meteo (deduped by location) | New `pressure_event` per user if threshold exceeded |
 | Pressure event detected | Cron → `lib/push.ts` → VAPID push service | Push notification sent to all user's subscriptions |
-| User taps notification | Service worker deep-link → `/checkin?event=<id>` | PWA check-in flow opens |
+| User taps notification | Service worker deep-link → `/checkin?event_id=<id>` | PWA check-in flow opens |
 | User opens PWA directly | PWA → Supabase (RLS-scoped) | Manual check-in or retroactive entry |
 | User enables notifications in Settings | `lib/push-client.ts` → SW registration → `/api/push/subscribe` | `push_subscriptions` row saved |
 | User views Analysis tab | PWA → `event_outcomes` view | Correlation charts (Recharts); view returns only user's own rows via RLS |

@@ -77,12 +77,12 @@ The redesign replaces: Slack → Web Push (VAPID) · Zapier/GCal Benadryl → in
 
 ---
 
-## Open Questions (decide before/while building)
+## Open Questions — all resolved in code ✅
 
-See [`REDESIGN-PLAN.md`](REDESIGN-PLAN.md) §8 for the full list. The ones that block the build:
-1. Does `detectEvents` take thresholds as params, or read the (now-removed) global `settings`? Refactor if the latter.
-2. Magic-link flow — PKCE `?code=` (plan assumes this) vs. token-hash email template?
-3. Duplicate-event guard — exact `event_start` match vs. overlap-window tolerance per user?
+See `DEPLOY-RUNBOOK.md` Gotcha #5. The three build-blocking questions from [`REDESIGN-PLAN.md`](REDESIGN-PLAN.md) §8 are settled — do not re-litigate:
+1. `detectPressureEvent` takes thresholds as params (per-user, from `user_settings`). ✅
+2. Magic-link flow uses PKCE `?code=` via `exchangeCodeForSession` in `/auth/callback`. ✅
+3. Duplicate-event guard uses a ±6h overlap window per user. ✅
 
 ---
 
@@ -91,7 +91,7 @@ See [`REDESIGN-PLAN.md`](REDESIGN-PLAN.md) §8 for the full list. The ones that 
 | File | What It Does |
 |---|---|
 | `REDESIGN-PLAN.md` | File-by-file implementation plan for the multi-user redesign |
-| `SETUP.md` | Deployment guide (⚠️ describes v1 — update for redesign) |
+| `SETUP.md` | Deployment guide (updated for v2) |
 | `lib/openmeteo.ts` | Fetches pressure data + detects events |
 | `lib/push.ts` | Sends Web Push notifications with deep link (replaces `lib/slack.ts`) |
 | `lib/suggestions.ts` | Suggests interventions based on past effectiveness |

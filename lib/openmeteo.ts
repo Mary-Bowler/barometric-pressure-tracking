@@ -2,7 +2,7 @@ import type { DetectedPressureEvent } from './types'
 
 interface OpenMeteoResponse {
   hourly: {
-    time: string[]
+    time: number[]
     surface_pressure: number[]
   }
 }
@@ -13,7 +13,11 @@ export async function fetchPressureForecast(lat: number, lng: number): Promise<{
   url.searchParams.set('longitude', lng.toString())
   url.searchParams.set('hourly', 'surface_pressure')
   url.searchParams.set('forecast_days', '2')
-  url.searchParams.set('timezone', 'America/Chicago')
+  // Unix timestamps are unambiguous UTC instants; naive local-time strings
+  // would be parsed in the server's timezone and skew every stored timestamp
+  // (and thus notification timing) by the location's UTC offset.
+  url.searchParams.set('timeformat', 'unixtime')
+  url.searchParams.set('timezone', 'UTC')
 
   const res = await fetch(url.toString(), { next: { revalidate: 3600 } })
   if (!res.ok) throw new Error(`Open-Meteo error: ${res.status}`)
@@ -21,7 +25,7 @@ export async function fetchPressureForecast(lat: number, lng: number): Promise<{
   const data: OpenMeteoResponse = await res.json()
 
   return data.hourly.time.map((t, i) => ({
-    time: t,
+    time: new Date(t * 1000).toISOString(),
     pressure: data.hourly.surface_pressure[i],
   }))
 }
@@ -31,32 +35,34 @@ export function detectPressureEvent(
   thresholdMbar: number,
   thresholdHours: number
 ): DetectedPressureEvent | null {
-  const now = new Date()
-
   // Only look at future readings (starting from the current hour)
-  const upcoming = readings.filter(r => new Date(r.time) >= new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours()))
+  const currentHourMs = Math.floor(Date.now() / 3_600_000) * 3_600_000
+  const upcoming = readings.filter(r => new Date(r.time).getTime() >= currentHourMs)
 
   if (upcoming.length < 2) return null
 
-  // Slide a window of thresholdHours across the upcoming readings
-  const windowSize = Math.ceil(thresholdHours)
+  // Readings are hourly, so a span of N steps covers N hours. Compare every
+  // pair of readings up to thresholdHours apart, not just window endpoints,
+  // so a fast swing inside the window still triggers.
+  const maxSteps = Math.max(1, Math.floor(thresholdHours))
 
-  for (let i = 0; i <= upcoming.length - windowSize; i++) {
-    const windowStart = upcoming[i]
-    const windowEnd = upcoming[i + windowSize - 1]
+  for (let i = 0; i < upcoming.length - 1; i++) {
+    const last = Math.min(i + maxSteps, upcoming.length - 1)
+    for (let j = i + 1; j <= last; j++) {
+      const start = upcoming[i]
+      const end = upcoming[j]
+      const delta = end.pressure - start.pressure
 
-    const delta = windowEnd.pressure - windowStart.pressure
-    const absDelta = Math.abs(delta)
-    const durationHrs = (new Date(windowEnd.time).getTime() - new Date(windowStart.time).getTime()) / 3_600_000
-
-    if (absDelta >= thresholdMbar) {
-      return {
-        direction: delta < 0 ? 'falling' : 'rising',
-        forecasted_change_mbar: Math.round(absDelta * 100) / 100,
-        forecasted_duration_hrs: Math.round(durationHrs * 100) / 100,
-        event_start: windowStart.time,
-        event_end: windowEnd.time,
-        actual_pressure_start: windowStart.pressure,
+      if (Math.abs(delta) >= thresholdMbar) {
+        const durationHrs = (new Date(end.time).getTime() - new Date(start.time).getTime()) / 3_600_000
+        return {
+          direction: delta < 0 ? 'falling' : 'rising',
+          forecasted_change_mbar: Math.round(Math.abs(delta) * 100) / 100,
+          forecasted_duration_hrs: Math.round(durationHrs * 100) / 100,
+          event_start: start.time,
+          event_end: end.time,
+          actual_pressure_start: start.pressure,
+        }
       }
     }
   }
@@ -67,15 +73,15 @@ export function detectPressureEvent(
 export async function getCurrentPressure(lat: number, lng: number): Promise<number | null> {
   try {
     const readings = await fetchPressureForecast(lat, lng)
-    const now = new Date()
-    const currentHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours())
+    const currentHourMs = Math.floor(Date.now() / 3_600_000) * 3_600_000
 
     const match = readings.find(r => {
-      const t = new Date(r.time)
-      return t >= currentHour && t < new Date(currentHour.getTime() + 3_600_000)
+      const t = new Date(r.time).getTime()
+      return t >= currentHourMs && t < currentHourMs + 3_600_000
     })
 
-    return match?.pressure ?? readings[0]?.pressure ?? null
+    // No wrong-hour fallback: a stale reading is worse than showing nothing
+    return match?.pressure ?? null
   } catch {
     return null
   }

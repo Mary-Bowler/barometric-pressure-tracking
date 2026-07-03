@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import Nav from '@/components/Nav'
+import LocalTime from '@/components/LocalTime'
 import type { PressureEvent } from '@/lib/types'
 
 async function getEvents(): Promise<PressureEvent[]> {
@@ -11,13 +12,6 @@ async function getEvents(): Promise<PressureEvent[]> {
     .order('event_start', { ascending: false })
     .limit(50)
   return (data ?? []) as PressureEvent[]
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit',
-  })
 }
 
 export const revalidate = 0
@@ -71,9 +65,10 @@ export default async function EventsPage() {
                   {e.rate_mbar_hr?.toFixed(2) ?? '—'} mbar/hr
                 </p>
               </div>
-              <p className="text-xs text-slate-500 text-right flex-shrink-0">
-                {formatDate(e.event_start)}
-              </p>
+              <LocalTime
+                iso={e.event_start}
+                className="text-xs text-slate-500 text-right flex-shrink-0"
+              />
             </div>
           </Link>
         ))}

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+function csvField(value: unknown): string {
+  const s = value == null ? '' : String(value)
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -66,8 +71,8 @@ export async function GET(req: NextRequest) {
         event.rate_mbar_hr ?? '', event.source, event.status,
         event.first_intervention_at ?? '', hoursToFirst,
         peakSeverity, avgSeverity, checkins.length,
-        `"${allSymptoms}"`, `"${interventionSummary}"`,
-      ].join(',')
+        allSymptoms, interventionSummary,
+      ].map(csvField).join(',')
     )
   }
 
