@@ -124,7 +124,8 @@ Mom has invited you to the Supabase organization. Here's what you need to know t
    - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
    - **anon / public key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - **service_role key** → `SUPABASE_SERVICE_ROLE_KEY` *(keep this secret — never commit it)*
-4. The schema is already deployed — do **not** re-run `001_initial.sql` or you'll get errors on existing tables
+4. **Schema (v2 reset required):** the project DB currently holds the *empty v1* tables. For v2 you must reset first — drop the v1 objects, then run the **rewritten** `001_initial.sql` (see `DEPLOY-RUNBOOK.md` Phase 2b, or `supabase db reset` on a linked project). ⚠️ The v2 `001_initial.sql` has **no `DROP` statements**, so running it over the existing v1 tables without dropping them first will collide on `pressure_events`, `symptom_checkins`, `interventions`, and `event_outcomes`.
+   *(This step previously read "schema already deployed — do not re-run 001." That described v1 and is now obsolete — the v2 schema is a full rewrite that has not been applied.)*
 
 ### GitHub Access
 

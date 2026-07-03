@@ -14,6 +14,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'invalid subscription object' }, { status: 400 })
   }
 
+  try {
+    atob(String(sub.keys.p256dh).replace(/-/g, '+').replace(/_/g, '/'))
+    atob(String(sub.keys.auth).replace(/-/g, '+').replace(/_/g, '/'))
+  } catch {
+    return NextResponse.json({ error: 'invalid key encoding' }, { status: 400 })
+  }
+
   const { error } = await supabase.from('push_subscriptions').upsert(
     {
       user_id: user.id,

@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const status = searchParams.get('status')
-  const limit = parseInt(searchParams.get('limit') ?? '50')
+  const limit = Math.min(1000, Math.max(1, parseInt(searchParams.get('limit') ?? '50') || 50))
 
   let query = supabase
     .from('pressure_events')
@@ -72,6 +72,7 @@ export async function PATCH(req: NextRequest) {
     .from('pressure_events')
     .update(updates)
     .eq('id', id)
+    .eq('user_id', user.id)
     .select()
     .single()
 

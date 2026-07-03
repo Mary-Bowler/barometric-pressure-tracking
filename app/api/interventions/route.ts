@@ -51,11 +51,15 @@ export async function POST(req: NextRequest) {
 
   // Update first_intervention_at on the event if not yet set
   if (body.event_id) {
-    await supabase
+    const { error: evtErr } = await supabase
       .from('pressure_events')
       .update({ first_intervention_at: recordedAt })
       .eq('id', body.event_id)
+      .eq('user_id', user.id)
       .is('first_intervention_at', null)
+    if (evtErr) {
+      console.error('[interventions] first_intervention_at update failed', evtErr)
+    }
   }
 
   return NextResponse.json(data, { status: 201 })
@@ -71,11 +75,12 @@ export async function PATCH(req: NextRequest) {
 
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
-  // RLS ensures users can only update their own rows
+  // RLS ensures users can only update their own rows; user_id filter is belt-and-suspenders
   const { data, error } = await supabase
     .from('interventions')
     .update(updates)
     .eq('id', id)
+    .eq('user_id', user.id)
     .select()
     .single()
 

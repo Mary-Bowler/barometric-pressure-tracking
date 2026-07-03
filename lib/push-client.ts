@@ -10,6 +10,10 @@ export async function enablePush(): Promise<{ ok: boolean; reason?: string }> {
     return { ok: false, reason: 'Push not supported on this device or browser.' }
   }
 
+  if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+    return { ok: false, reason: 'Push not configured on this server.' }
+  }
+
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') {
     return { ok: false, reason: 'Permission denied. Enable notifications in Settings.' }

@@ -22,7 +22,10 @@ export interface PushPayload {
  * Sends a push notification to every subscription a user has.
  * Never throws — expired/invalid subscriptions (404/410) are pruned; other errors are logged.
  */
-export async function sendPushToUser(userId: string, payload: PushPayload): Promise<void> {
+export async function sendPushToUser(
+  userId: string,
+  payload: PushPayload
+): Promise<{ sent: number; failed: number }> {
   configure()
   const supabase = createServiceClient()
 
@@ -31,7 +34,10 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
     .select('id, endpoint, p256dh, auth')
     .eq('user_id', userId)
 
-  if (!subs?.length) return
+  if (!subs?.length) return { sent: 0, failed: 0 }
+
+  let sent = 0
+  let failed = 0
 
   await Promise.all(
     subs.map(async s => {
@@ -40,7 +46,9 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           JSON.stringify(payload)
         )
+        sent++
       } catch (err: any) {
+        failed++
         const status = err?.statusCode
         if (status === 404 || status === 410) {
           await supabase.from('push_subscriptions').delete().eq('id', s.id)
@@ -50,4 +58,10 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
       }
     })
   )
+
+  if (failed > 0) {
+    console.warn(`[push] user ${userId}: ${sent} sent, ${failed} failed`)
+  }
+
+  return { sent, failed }
 }
