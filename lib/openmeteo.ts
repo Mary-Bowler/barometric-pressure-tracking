@@ -49,20 +49,26 @@ export function detectPressureEvent(
   for (let i = 0; i < upcoming.length - 1; i++) {
     const last = Math.min(i + maxSteps, upcoming.length - 1)
     for (let j = i + 1; j <= last; j++) {
+      if (Math.abs(upcoming[j].pressure - upcoming[i].pressure) < thresholdMbar) continue
+
+      // Trim readings that don't contribute to the change (e.g. a flat
+      // lead-in before a sharp drop), otherwise the stored duration is
+      // inflated and rate_mbar_hr — the core analysis variable — diluted.
+      while (i + 1 < j && Math.abs(upcoming[j].pressure - upcoming[i + 1].pressure) >= thresholdMbar) i++
+      while (j - 1 > i && Math.abs(upcoming[j - 1].pressure - upcoming[i].pressure) >= thresholdMbar) j--
+
       const start = upcoming[i]
       const end = upcoming[j]
       const delta = end.pressure - start.pressure
+      const durationHrs = (new Date(end.time).getTime() - new Date(start.time).getTime()) / 3_600_000
 
-      if (Math.abs(delta) >= thresholdMbar) {
-        const durationHrs = (new Date(end.time).getTime() - new Date(start.time).getTime()) / 3_600_000
-        return {
-          direction: delta < 0 ? 'falling' : 'rising',
-          forecasted_change_mbar: Math.round(Math.abs(delta) * 100) / 100,
-          forecasted_duration_hrs: Math.round(durationHrs * 100) / 100,
-          event_start: start.time,
-          event_end: end.time,
-          actual_pressure_start: start.pressure,
-        }
+      return {
+        direction: delta < 0 ? 'falling' : 'rising',
+        forecasted_change_mbar: Math.round(Math.abs(delta) * 100) / 100,
+        forecasted_duration_hrs: Math.round(durationHrs * 100) / 100,
+        event_start: start.time,
+        event_end: end.time,
+        actual_pressure_start: start.pressure,
       }
     }
   }

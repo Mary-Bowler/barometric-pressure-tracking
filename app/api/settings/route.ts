@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+// Number('') and Number(null) are 0, which passes range checks — require an
+// actual number or a non-empty numeric string
+function toNumber(value: unknown): number {
+  if (typeof value === 'number') return value
+  if (typeof value === 'string' && value.trim() !== '') return Number(value)
+  return NaN
+}
+
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -23,10 +31,10 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
 
-  const lat = Number(body.location_lat)
-  const lng = Number(body.location_lng)
-  const thresholdMbar = Number(body.alert_threshold_mbar ?? 6)
-  const thresholdHours = Number(body.alert_threshold_hours ?? 3)
+  const lat = toNumber(body.location_lat)
+  const lng = toNumber(body.location_lng)
+  const thresholdMbar = toNumber(body.alert_threshold_mbar ?? 6)
+  const thresholdHours = toNumber(body.alert_threshold_hours ?? 3)
 
   if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
     return NextResponse.json({ error: 'location_lat and location_lng must be valid coordinates' }, { status: 400 })
