@@ -28,9 +28,9 @@ It is self-contained; the fuller narrative lives in `../DEPLOY-RUNBOOK.md` (Zeph
 ---
 
 ## 0. Prereqs 👤
-- [ ] You can log into **Supabase**, **Vercel**, and the **GitHub repo** (`Mary-Bowler/barometric-pressure-tracking`).
-- [ ] You have the existing **`CRON_SECRET`** (saved in your password manager as "Cron Secret").
-- [ ] The `handoff/v2-deploy-prep` branch is merged to `main` (or you deploy that branch).
+- [x] You can log into **Supabase**, **Vercel**, and the **GitHub repo** (`Mary-Bowler/barometric-pressure-tracking`).
+- [x] You have the existing **`CRON_SECRET`** (saved in your password manager as "Cron Secret").
+- [x] The `handoff/v2-deploy-prep` branch is merged to `main` (or you deploy that branch).
 
 ## 1. Generate VAPID keys 💻
 ```bash

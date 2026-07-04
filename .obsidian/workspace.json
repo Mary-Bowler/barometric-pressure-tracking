@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "REDESIGN-PROMPT.md",
+                "file": "barometric-tracker-handoff.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "REDESIGN-PROMPT"
+              "title": "barometric-tracker-handoff"
             }
           }
         ]
@@ -183,8 +183,13 @@
       "bases:Create new base": false
     }
   },
-  "active": "3d19fe83576fb85e",
+  "active": "d1ff41338d8b4bfa",
   "lastOpenFiles": [
+    "vercel.json.tmp.21916.d0d4e9108334",
+    "MARY-DEPLOY-CHECKLIST.md",
+    "ARCHITECTURE.md",
+    "barometric-tracker-handoff.md",
+    "REDESIGN-PROMPT.md",
     "barometric-tracker-handoff.md.tmp.43288.ab06e37d59df",
     "node_modules/@types/json5/index.d.ts",
     "node_modules/@types/d3-timer/index.d.ts",
@@ -195,7 +200,6 @@
     "node_modules/d3-color/src/lab.js",
     "node_modules/d3-color/src/color.js",
     "node_modules/d3-color/dist/d3-color.min.js",
-    "node_modules/d3-color/dist/d3-color.js",
     "node_modules/d3-color/README.md",
     "node_modules/http_ece/README.md",
     "node_modules/@types/web-push/README.md",
@@ -217,10 +221,6 @@
     "node_modules/ajv/README.md",
     "node_modules/eslint-plugin-import/docs/rules/prefer-default-export.md",
     "node_modules/eslint-plugin-import/docs/rules/unambiguous.md",
-    "node_modules/eslint-plugin-import/docs/rules/order.md",
-    "node_modules/eslint-plugin-import/docs/rules/no-webpack-loader-syntax.md",
-    "node_modules/eslint-plugin-import/docs/rules/no-useless-path-segments.md",
-    "node_modules/eslint-plugin-import/docs/rules/no-unused-modules.md",
     "node_modules/@supabase/phoenix/priv/static/phoenix.png",
     "node_modules/@supabase/phoenix/priv/static/phoenix-orange.png"
   ]
