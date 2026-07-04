@@ -1,0 +1,15 @@
+name: Pressure Check
+
+on:
+  schedule:
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger pressure check
+        run: |
+          curl -f -X GET "${{ secrets.SITE_URL }}/api/cron/check-pressure" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
