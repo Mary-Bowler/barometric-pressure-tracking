@@ -11,5 +11,5 @@ jobs:
     steps:
       - name: Trigger pressure check
         run: |
-          curl -f -X GET "${{ secrets.SITE_URL }}/api/cron/check-pressure" \
+          curl -f -X GET "${{ vars.SITE_URL }}/api/cron/check-pressure" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
